@@ -1,0 +1,334 @@
+Setting up a Domain Docker registry:
+1. Create a Certificate
+mkdir -p /registry/certs && openssl req -newkey rsa:4096 -nodes -sha256 -keyout /registry/certs/domain.key -x509 -days 999 -out /registry/certs/domain.crt
+
+Example:
+
+[root@dev registry]# openssl req -newkey rsa:4096 -nodes -sha256 -keyout certs/domain.key -x509 -days 999 -out certs/domain.crt
+Generating a 4096 bit RSA private key
+.........................................................................++
+..........................++
+writing new private key to 'certs/domain.key'
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [XX]:US
+State or Province Name (full name) []:Texas
+Locality Name (eg, city) [Default City]:Dallas
+Organization Name (eg, company) [Default Company Ltd]:NantHealth
+Organizational Unit Name (eg, section) []:Dev
+Common Name (eg, your name or your server's hostname) []:10.100.105.7
+Email Address []:
+
+2. Start docker container
+docker run -d -p 5000:5000 --restart=always --name registry \
+-v /registry/certs:/certs -v /registry/data:/var/lib/registry \
+-e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+-e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+registry:2
+
+Get https://10.100.105.7:5000/v1/_ping: x509: cannot validate certificate for 10
+.100.105.7 because it doesn't contain any IP SANs
+
+2.Edited the file /etc/ssl/openssl.cnf on the registry:2 host and added
+ subjectAltName = IP:192.168.2.102 into the [v3_ca] section. Like the following:
+
+…
+[ v3_ca ]
+ subjectAltName = IP:192.168.1.102
+ ...
+
+ https://github.com/docker/distribution/issues/948
+
+
+
+
+
+
+ On the pull side:
+mkdir -p /etc/docker/certs/10.100.105.7:5000
+cd /etc/docker/certs/10.100.105.7:5000
+scp 10.100.105.7:/home/vsharma/domain.* ca.crt
+
+cd /etc/systemd/system/docker.service.d
+vi 50-insecure-registry.conf
+systemctl stop docker
+systemctl daemon-reload
+systemctl start docker
+
+On Windows:
+1. Start the docker terminal.
+2. Login to the default docker-machine
+docker-machine ssh
+3. Modifiy the boot2docker profile.
+> sudo su -
+# cd /var/lib/boot2docker
+# vi profile
+Add --insecure-registry 10.100.105.7:5000 line to EXTRA_ARGS='
+
+The content of the file should look like:
+EXTRA_ARGS='
+--label provider=virtualbox
+--insecure-registry 10.100.105.7:5000
+
+'
+CACERT=/var/lib/boot2docker/ca.pem
+DOCKER_HOST='-H tcp://0.0.0.0:2376'
+DOCKER_STORAGE=aufs
+DOCKER_TLS=auto
+SERVERKEY=/var/lib/boot2docker/server-key.pem
+SERVERCERT=/var/lib/boot2docker/server.pem
+
+4. Restart docker daemon
+# cd /etc/init.d
+# ./docker stop
+# ./docker start
+
+-------------------------------------------------
+
+# Uncomment following build command to point to different docker registry and test 
+./gradlew clean buildDocker -i -S -Dorg.gradle.java.home=$JAVA8_HOME -PdockerRegistryHost=10.100.105.7 -PdockerRegistryPort=5000
+
+# ./gradlew clean buildDocker -i -S -Dorg.gradle.java.home=$JAVA8_HOME -PdockerRegistryHost=localhost -PdockerRegistryPort=5000
+
+
+  docker run -d -p 8012:8012 -e "SPRING_PROFILES_ACTIVE=qatrunk" --log-driver=fluentd --log-opt fluentd-address=10.7.112.75:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Discovery" -t 10.100.105.7:5000/discovery-server
+  docker run -d -p 8443:8443 -e "SPRING_PROFILES_ACTIVE=qatrunk" --log-driver=fluentd --log-opt fluentd-address=10.7.112.75:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Gateway" -t 10.100.105.7:5000/gateway-server
+  docker run -d -p 8014:8014 -e "SPRING_PROFILES_ACTIVE=qatrunk" --log-driver=fluentd --log-opt fluentd-address=10.7.112.75:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Documentation" -t 10.100.105.7:5000/documentation-server
+  docker run -d -p 8050:8050 -e "SPRING_PROFILES_ACTIVE=qatrunk" --log-driver=fluentd --log-opt fluentd-address=10.7.112.75:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Vitals" -t 10.100.105.7:5000/ms-vitals
+
+  sha256:4fc8ddb4df35acaa7d2e69541be827d5544401dd084fca008deff37073ec2a3b
+  sha256:e417b118fd88877adfabb40ca8524fbcea050152fe868560102e3385553f9c38
+  sha256:e417b118fd88877adfabb40ca8524fbcea050152fe868560102e3385553f9c38
+
+  openssl x509 -in domain.crt -noout -text
+
+
+
+
+
+curl -k https://10.100.105.7:5000/v2/_catalog
+{"repositories":["centos","discovery-server","documentation-server","gateway-server","hello-world","ms-vitals"]}
+
+curl -k https://10.100.105.7:5000/v2/ms-vitals/tags/list
+{"name":"ms-vitals","tags":["0.1.0"]}
+
+curl -k https://10.100.105.7:5000/v2/gateway-server/tags/list
+{"name":"gateway-server","tags":["0.1.0"]}
+
+curl -k https://10.100.105.7:5000/v2/gateway-server/manifests/0.1.0
+{
+   "schemaVersion": 1,
+   "name": "gateway-server",
+   "tag": "0.1.0",
+   "architecture": "amd64",
+   "fsLayers": [
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:fe540648c38f76c547edbf4eb5f4d22d653e639d591b967afc54f7797096a701"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:b14e74d4fd3868ecccf7b81e6310c8a3173dfd837cc68157ed7c81303c1fac77"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:734cc28150de3e42c9e581aa1d7da3f378fcde2a00719a2d42ec376519050365"
+      },
+      {
+         "blobSum": "sha256:864a98a84dd2bba52cf57d13161517ee01e2966e72c3ac842c6a3d49c07dcb37"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:3cfd33220efaaad496080e9fdb124ddb9ba07742852c2db816c9870fe2e10c2a"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:620b5227cf380167d746f024d97b53f26fafcbd253df4cf56b3b3a056bf12ae1"
+      },
+      {
+         "blobSum": "sha256:5f444d0704271a846e0b83af62071bc825052d6eabba96121bc0acda9c8f9e64"
+      },
+      {
+         "blobSum": "sha256:c6072700a24252bd71f6c5d2cabf5978ddf324a959b05bad417d8b3789f8df33"
+      },
+      {
+         "blobSum": "sha256:ab30c63719b10dd434ddbe896879bd9b637fe4e16749a94d3dc827450dc2a437"
+      },
+      {
+         "blobSum": "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
+      },
+      {
+         "blobSum": "sha256:5c90d4a2d1a8dfffd05ff2dd659923f0ca2d843b5e45d030e17abbcd06a11b5b"
+      }
+   ],
+   "history": [
+      {
+         "v1Compatibility": "{\"architecture\":\"amd64\",\"author\":\"George Varghese \\u003cgvarghese@nanthealth.com\\u003e\",\"config\":{\"Hostname\":\"6250540837a8\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"ExposedPorts\":{\"8030/tcp\":{}},\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":[\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\"LANG=C.UTF-8\",\"JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\",\"JAVA_VERSION=8u91\",\"JAVA_DEBIAN_VERSION=8u91-b14-1~bpo8+1\",\"CA_CERTIFICATES_JAVA_VERSION=20140324\"],\"Cmd\":null,\"ArgsEscaped\":true,\"Image\":\"sha256:78635a01daa9dd0eb772ec0a85c266034ebd1982d7016b10b252236b21a993a3\",\"Volumes\":{\"/tmp\":{}},\"WorkingDir\":\"\",\"Entrypoint\":[\"java\",\"-Djava.security.egd=file:/dev/./urandom\",\"-jar\",\"/app.jar\"],\"OnBuild\":[],\"Labels\":{\"Description\":\"Image for NantHealth Gateway Service for Microservices\",\"Vendor\":\"NantHealth L.L.C.\",\"Version\":\"1.0\"}},\"container\":\"5887338627b1293132c5e931f3c5ce41722ac2ad08bfb7458c6566ec4834b436\",\"container_config\":{\"Hostname\":\"6250540837a8\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"ExposedPorts\":{\"8030/tcp\":{}},\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":[\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\"LANG=C.UTF-8\",\"JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\",\"JAVA_VERSION=8u91\",\"JAVA_DEBIAN_VERSION=8u91-b14-1~bpo8+1\",\"CA_CERTIFICATES_JAVA_VERSION=20140324\"],\"Cmd\":[\"/bin/sh\",\"-c\",\"#(nop) \",\"ENTRYPOINT [\\\"java\\\" \\\"-Djava.security.egd=file:/dev/./urandom\\\" \\\"-jar\\\" \\\"/app.jar\\\"]\"],\"ArgsEscaped\":true,\"Image\":\"sha256:78635a01daa9dd0eb772ec0a85c266034ebd1982d7016b10b252236b21a993a3\",\"Volumes\":{\"/tmp\":{}},\"WorkingDir\":\"\",\"Entrypoint\":[\"java\",\"-Djava.security.egd=file:/dev/./urandom\",\"-jar\",\"/app.jar\"],\"OnBuild\":[],\"Labels\":{\"Description\":\"Image for NantHealth Gateway Service for Microservices\",\"Vendor\":\"NantHealth L.L.C.\",\"Version\":\"1.0\"}},\"created\":\"2017-01-10T20:41:06.693120438Z\",\"docker_version\":\"1.12.5\",\"id\":\"7423b14331637d792aa4d603c415a276513f352c100dc666212ad3ebaeb8a89f\",\"os\":\"linux\",\"parent\":\"4bbb81a1b94ac2a94bfd25b45fe43a2f9c904fb93b0026ef7f825c2d2db83c0d\",\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"4bbb81a1b94ac2a94bfd25b45fe43a2f9c904fb93b0026ef7f825c2d2db83c0d\",\"parent\":\"2102019a3bafb1511f2fff02171eabeb67944ced444e758398199adb926b6868\",\"created\":\"2017-01-10T20:40:59.525786401Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c bash -c 'touch /app.jar'\"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"2102019a3bafb1511f2fff02171eabeb67944ced444e758398199adb926b6868\",\"parent\":\"76bf213867975d2c850f6c2e1a57244deeaf874042e4781102a122237a88ee9c\",\"created\":\"2017-01-10T20:40:47.599277466Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop)  EXPOSE 8030/tcp\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"76bf213867975d2c850f6c2e1a57244deeaf874042e4781102a122237a88ee9c\",\"parent\":\"df5ebad1f8b73cb18a20a623c576924b07707d9b82319fca18d87c179640e981\",\"created\":\"2017-01-10T20:40:41.437453232Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ADD file:b8aefbbdf4fb39175930701e8ecddb9a994846de3401f239838b40b428b82ac5 in app.jar \"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"df5ebad1f8b73cb18a20a623c576924b07707d9b82319fca18d87c179640e981\",\"parent\":\"af1887b202615b2d6769f0a747ebba9446f12c75f4d9d3348582b78c4de29a28\",\"created\":\"2017-01-02T19:14:30.485287044Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop)  VOLUME [/tmp]\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"af1887b202615b2d6769f0a747ebba9446f12c75f4d9d3348582b78c4de29a28\",\"parent\":\"6578dbeb9a2f461b0220c3974a012490559bffb3eb7fb0abc472d500d228dae4\",\"created\":\"2017-01-02T19:14:24.893082646Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop)  LABEL Description=Image for NantHealth Gateway Service for Microservices Vendor=NantHealth L.L.C. Version=1.0\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"6578dbeb9a2f461b0220c3974a012490559bffb3eb7fb0abc472d500d228dae4\",\"parent\":\"e4a5768b408e9f42cae47dd5e82b68035d13b73fa08040ca04c8b883f0132f1a\",\"created\":\"2016-12-25T14:49:52.472492415Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop)  MAINTAINER George Varghese \\u003cgvarghese@nanthealth.com\\u003e\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"e4a5768b408e9f42cae47dd5e82b68035d13b73fa08040ca04c8b883f0132f1a\",\"parent\":\"2532a12c28d21a3cbc28d492013ffe9c15a939ca14786ff41c2e6f2f5c21612f\",\"created\":\"2016-06-09T22:12:23.985372548Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c /var/lib/dpkg/info/ca-certificates-java.postinst configure\"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"2532a12c28d21a3cbc28d492013ffe9c15a939ca14786ff41c2e6f2f5c21612f\",\"parent\":\"aac10997877acccd7bd0c1ab0a2e97f8de06d76dbaa3aa3832e7a4371bbb6dae\",\"created\":\"2016-06-09T22:12:21.021688896Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c set -x \\t\\u0026\\u0026 apt-get update \\t\\u0026\\u0026 apt-get install -y \\t\\topenjdk-8-jdk=\\\"$JAVA_DEBIAN_VERSION\\\" \\t\\tca-certificates-java=\\\"$CA_CERTIFICATES_JAVA_VERSION\\\" \\t\\u0026\\u0026 rm -rf /var/lib/apt/lists/* \\t\\u0026\\u0026 [ \\\"$JAVA_HOME\\\" = \\\"$(docker-java-home)\\\" ]\"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"aac10997877acccd7bd0c1ab0a2e97f8de06d76dbaa3aa3832e7a4371bbb6dae\",\"parent\":\"39ed48325b79396a3d637a3e9ca22b1c716bbe00db6a7985aca19402a977471f\",\"created\":\"2016-06-09T22:10:11.741871777Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ENV CA_CERTIFICATES_JAVA_VERSION=20140324\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"39ed48325b79396a3d637a3e9ca22b1c716bbe00db6a7985aca19402a977471f\",\"parent\":\"30ef89898655fe40a4504ec52129d8d0f092322f8a7011519ba25ca482cd52c6\",\"created\":\"2016-06-09T22:10:11.434884636Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ENV JAVA_DEBIAN_VERSION=8u91-b14-1~bpo8+1\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"30ef89898655fe40a4504ec52129d8d0f092322f8a7011519ba25ca482cd52c6\",\"parent\":\"ee04f666e5173ab9b1f8a04595d31d75504d83e499c27d0092f8d20d8dd2911f\",\"created\":\"2016-06-09T22:10:11.14239489Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ENV JAVA_VERSION=8u91\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"ee04f666e5173ab9b1f8a04595d31d75504d83e499c27d0092f8d20d8dd2911f\",\"parent\":\"4d7b936a01eed371c341e29aa4f2350325c8ab02ad49120b3ee2f7818c6e039b\",\"created\":\"2016-06-09T22:10:10.859998251Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"4d7b936a01eed371c341e29aa4f2350325c8ab02ad49120b3ee2f7818c6e039b\",\"parent\":\"f0a5bcddd6a6661d0c3aa5766d8d0ea749c8b77a5f716e50a66aea453cee00c7\",\"created\":\"2016-06-09T22:10:10.547486334Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c { \\t\\techo '#!/bin/sh'; \\t\\techo 'set -e'; \\t\\techo; \\t\\techo 'dirname \\\"$(dirname \\\"$(readlink -f \\\"$(which javac || which java)\\\")\\\")\\\"'; \\t} \\u003e /usr/local/bin/docker-java-home \\t\\u0026\\u0026 chmod +x /usr/local/bin/docker-java-home\"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"f0a5bcddd6a6661d0c3aa5766d8d0ea749c8b77a5f716e50a66aea453cee00c7\",\"parent\":\"bde2467e28f6ca9ba3976baf759524ebf55b11cfc322d44b80dc4e91f7214fec\",\"created\":\"2016-06-09T22:10:09.403539564Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ENV LANG=C.UTF-8\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"bde2467e28f6ca9ba3976baf759524ebf55b11cfc322d44b80dc4e91f7214fec\",\"parent\":\"48db5cb6b225c92365e7ca53e03ea0bafa7dbb29bc48a46d6fdadad5110b3086\",\"created\":\"2016-06-09T22:10:09.100268444Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c echo 'deb http://httpredir.debian.org/debian jessie-backports main' \\u003e /etc/apt/sources.list.d/jessie-backports.list\"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"48db5cb6b225c92365e7ca53e03ea0bafa7dbb29bc48a46d6fdadad5110b3086\",\"parent\":\"093e606554feb882234d82083675c464f0e8ed4db53a88df39965190e24049ef\",\"created\":\"2016-06-09T22:05:16.128864885Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c apt-get update \\u0026\\u0026 apt-get install -y --no-install-recommends \\t\\tbzip2 \\t\\tunzip \\t\\txz-utils \\t\\u0026\\u0026 rm -rf /var/lib/apt/lists/*\"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"093e606554feb882234d82083675c464f0e8ed4db53a88df39965190e24049ef\",\"parent\":\"4c76b3c135637de0018f575020919b06ce846cd8e77295eb6b5f10c378ca1332\",\"created\":\"2016-06-09T21:37:09.827344023Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c apt-get update \\u0026\\u0026 apt-get install -y --no-install-recommends \\t\\tbzr \\t\\tgit \\t\\tmercurial \\t\\topenssh-client \\t\\tsubversion \\t\\t\\t\\tprocps \\t\\u0026\\u0026 rm -rf /var/lib/apt/lists/*\"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"4c76b3c135637de0018f575020919b06ce846cd8e77295eb6b5f10c378ca1332\",\"parent\":\"435cb21051b6acf1c846fa0550c9a8de3dd529ead7064958ab4278a1f2bd3a36\",\"created\":\"2016-06-09T21:35:50.029803171Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c apt-get update \\u0026\\u0026 apt-get install -y --no-install-recommends \\t\\tca-certificates \\t\\tcurl \\t\\twget \\t\\u0026\\u0026 rm -rf /var/lib/apt/lists/*\"]}}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"435cb21051b6acf1c846fa0550c9a8de3dd529ead7064958ab4278a1f2bd3a36\",\"parent\":\"7d78525320442999cccbd4b15232adf41588ddca6ecb281f1d3a8bbf45862997\",\"created\":\"2016-06-09T21:28:43.776404816Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) CMD [\\\"/bin/bash\\\"]\"]},\"throwaway\":true}"
+      },
+      {
+         "v1Compatibility": "{\"id\":\"7d78525320442999cccbd4b15232adf41588ddca6ecb281f1d3a8bbf45862997\",\"created\":\"2016-06-09T21:28:42.397841831Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ADD file:76679eeb94129df23c99013487d6b6bd779d2107bf07d194a524fdbb6a961530 in /\"]}}"
+      }
+   ],
+   "signatures": [
+      {
+         "header": {
+            "jwk": {
+               "crv": "P-256",
+               "kid": "257V:UOLJ:NXPA:7T5Y:7AG4:PYJS:X3YJ:J3WF:3KTV:DOJQ:IQ3Z:QNTG",
+               "kty": "EC",
+               "x": "N8PQMjrVwc5ddfKMIOXdSMva6aNxr8tHVI_HGLc4050",
+               "y": "aEQK-VqsR3PMqtQ20iT9AoUGQQXXIDFxr-iZbgpqh38"
+            },
+            "alg": "ES256"
+         },
+         "signature": "B-s9MN6XeE2Ks0PFbhOtl7mr18Szj-ackM-vX_IrmsiqSUs3liy81LqkIg_h7pIR3oeQI_HKbnFneW4BX2CQQg",
+         "protected": "eyJmb3JtYXRMZW5ndGgiOjEyOTg5LCJmb3JtYXRUYWlsIjoiQ24wIiwidGltZSI6IjIwMTctMDEtMTBUMjA6NDU6NDFaIn0"
+      }
+   ]
+}
+
+curl -k -I https://10.100.105.7:5000/v2/gateway-server/manifests/0.1.0
+HTTP/1.1 200 OK
+Content-Length: 13637
+Content-Type: application/vnd.docker.distribution.manifest.v1+prettyjws
+Docker-Content-Digest: sha256:f7df1ef29266ba62f04784f042741acd57ede23303ac7346cfd5cd535a81e6c2
+Docker-Distribution-Api-Version: registry/2.0
+Etag: "sha256:f7df1ef29266ba62f04784f042741acd57ede23303ac7346cfd5cd535a81e6c2"
+X-Content-Type-Options: nosniff
+Date: Tue, 10 Jan 2017 20:48:54 GMT
+
+curl -v -k -X DELETE https://10.100.105.7:5000/v2/gateway-server/manifests/sha256:f7df1ef29266ba62f04784f042741acd57ede23303ac7346cfd5cd535a81e6c2
+
+curl -v -k -X DELETE https://10.100.105.7:5000/v2/gateway-server/manifests/sha256:f185a960ae3746ba1d5b728ea9cb01860c0c8aeb94035ec9476277632251a219 
+
+docker exec -it registry sh
+export NAME="hello-world"
+export VERSION="latest"
+cd /var/lib/registry/docker/registry/v2
+
+find . | grep `ls ./repositories/$NAME/_manifests/tags/$VERSION/index/sha256` | xargs rm -rf $1
+
+
+rm -rf ./repositories/$NAME/_manifests/tags/$VERSION
+
+
+exit
+
+
+
+
+sudo curl -L https://github.com/docker/machine/releases/download/v0.9.0-rc2/docker-machine-`uname -s`-`uname -m` \
+  -o /usr/local/bin/docker-machine
+sudo chmod +x /usr/local/bin/docker-machine
+
+sudo curl -L \
+  https://github.com/docker/compose/releases/download/1.9.0/docker-compose-`uname -s`-`uname -m` \
+  -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose  
+
+
+docker run -d -p 5000:5000 --restart=always --name registry \
+           -v /etc/docker/config.yml:/etc/docker/registry/config.yml \
+           -v /registry/certs:/certs \
+           -v /registry/data:/var/lib/registry \
+           -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+           -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+           registry:2
+
+
+curl -k https://10.100.105.7:5000/v2/_catalog
+curl -k https://10.100.105.7:5000/v2/ms-vitals/tags/list
+curl -k https://10.100.105.7:5000/v2/gateway-server/tags/list
+
+curl -k -v --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" -X GET https://10.100.105.7:5000/v2/gateway-server/manifests/0.1.0 2>&1 | grep Docker-Content-Digest | awk '{print ($3)}'
+
+curl -k -X DELETE https://10.100.105.7:5000/v2/gateway-server/manifests/sha256:e417b118fd88877adfabb40ca8524fbcea050152fe868560102e3385553f9c38
+docker exec -it registry  bin/registry garbage-collect  /etc/docker/registry/config.yml

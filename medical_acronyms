@@ -1,0 +1,31 @@
+ADT - It stands for “admissions, discharges, and transfers”. It basically means demographics; anytime you think of ADTs, think demographics: the patient's name, the patient's location in the hospital, patient's address, phone number, gender, etc.
+MPI - A master patient index (MPI) is an electronic medical database that holds information on every patient registered at a healthcare organization. It may also include data on physicians, other medical staff and facility employees.
+HL7 - Health Level-7 refers to a set of international standards for transfer of clinical and administrative data between software applications used by various healthcare providers.
+MRN - The medical record number is organization specific. The number is used by the hospital as a systematic documentation of a patient´s medical history and care during each hospital stay.
+EMR - An electronic medical record (EMR) is a digital version of a paper chart that contains all of a patient's medical history from one practice. An EMR is mostly used by providers for diagnosis and treatment.
+EPR - Electronic patient record
+EHR - Electronic health record
+EHRs may include a range of data, including demographics, medical history, medication and allergies, immunization status, laboratory test results, radiology images, vital signs, personal statistics like age and weight, and billing information.
+PAS - Personal alert system
+HES - Hospital Episode Statistics (UK)
+NHS - National Health Services (UK)
+GPO - Group Purchasing Organization. A medical group purchasing organization might be able to bring the purchasing power and negotiating leverage of large medical consortiums or hospital systems to doctors' offices.
+CCD - The Continuity of Care Document (CCD) is a joint effort of HL7 International and ASTM. CCD fosters interoperability of clinical data by allowing physicians to send electronic medical information to other providers without loss of meaning and enabling improvement of patient care.
+CCR - The Continuity of Care Record, or CCR, is a standard for the creation of electronic summaries of patient health. Its aim is to improve the quality of health care and to reduce medical errors by making current information readily available to physicians.
+NHIN - The Nationwide Health Information Network (NHIN) is a set of standards, services and policies that enable secure health information exchange (HIE) over the Internet.
+ASTM - ASTM International is an international standards organization that develops and publishes voluntary consensus technical standards for a wide range of materials, products, systems, and services.
+CDR - Clinical Data Repository
+eMPI - electronic master patient index
+RLS - Record Locator Services
+HIS - Hospital information system
+LIS - Laboratory information system
+RIS - A radiology information system (RIS) is a networked software system for managing medical imagery and associated data. A RIS is especially useful for tracking radiology imaging orders and billing information, and is often used in conjunction with PACS and VNAs to manage image archives, record-keeping and billing.
+PACS - A picture archiving and communication system (PACS) is a medical imaging technology which provides economical storage and convenient access to images from multiple modalities (source machine types).
+VNA - A Vendor Neutral Archive (VNA) is a medical imaging technology in which images and documents (and potentially any file of clinical relevance) are stored (archived) in a standard format with a standard interface, such that they can be accessed in a vendor-neutral manner by other systems.
+IHE - Integrating the Healthcare Enterprise (IHE) IHE is an initiative by healthcare professionals and industry to improve the way computer systems in healthcare share information.
+DICOM - Digital Imaging and Communications in Medicine (DICOM) is a standard for handling, storing, printing, and transmitting information in medical imaging. It includes a file format definition and a network communications protocol.
+CDISC - Clinical Data Interchange Standards Consortium
+CABG - Coronary artery bypass graft is an option for selected groups of patients with significant narrowings and blockages of the heart arteries. The bypass graft for a CABG can be a vein from the leg or an inner chest-wall artery. CABG surgery is one of the most commonly performed major operations.
+NQF - The National Quality Forum (NQF) is a nonprofit organization based in Washington, D.C. that is dedicated to improving the quality of health care in the United States. NQF members include purchasers, physicians, nurses, hospitals, certification bodies and fellow quality improvement organizations.
+ASC - Ambulatory surgery centers (ASC), also known as outpatient surgery centers or same day surgery centers, are health care facilities where surgical procedures not requiring an overnight hospital stay are performed.
+ACO - Accountable Care Organizations (ACOs) are groups of doctors, hospitals, and other health care providers, who come together voluntarily to give coordinated high quality care to their Medicare patients.

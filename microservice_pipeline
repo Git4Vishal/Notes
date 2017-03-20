@@ -1,0 +1,157 @@
+A. Steps to setup a domain registry using self-sign certificate:
+The procedure below assumes that docker is installed on the server that is being setup as a domain docker registry.
+1. Generate a certificate to match the registry domain
+# mkdir -p /registry/certs 
+# openssl req -newkey rsa:4096 -nodes -sha256 -keyout /registry/certs/domain.key -x509 -days 999 -out /registry/certs/domain.crt
+Generating a 4096 bit RSA private key
+.........................................................................++
+..........................++
+writing new private key to '/registry/certs/domain.key'
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [XX]:US
+State or Province Name (full name) []:Texas
+Locality Name (eg, city) [Default City]:Dallas
+Organization Name (eg, company) [Default Company Ltd]:NantHealth
+Organizational Unit Name (eg, section) []:Dev
+Common Name (eg, your name or your server's hostname) []:10.100.105.7
+Email Address []:
+
+Verify the SSL certificate:
+# openssl x509 -in domain.crt -noout -text
+
+2. Create a registry config file "/etc/docker/config.yml" with the following content:
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  cache:
+    blobdescriptor: inmemory
+  filesystem:
+    rootdirectory: /var/lib/registry
+  delete:
+    enabled: true
+http:
+  addr: :5000
+  headers:
+    X-Content-Type-Options: [nosniff]
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3
+
+3. Start docker container for the registry
+# docker run -d -p 5000:5000 --restart=always --name registry \
+			-v /etc/docker/config.yml:/etc/docker/registry/config.yml  \
+			-v /registry/certs:/certs \
+			-v /registry/data:/var/lib/registry \
+			-e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+			-e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+			registry
+
+
+B. Access to domain registry with self-signed certificate for Push/Pull images.
+The following steps assume that docker is already installed on the server that will be pushing/pulling images from a domain docker registry.
+1. Make "/etc/docker/certs/10.100.105.7:5000" directory
+# mkdir -p /etc/docker/certs/10.100.105.7:5000
+
+2. Secure copy domain registry certificate from registry server to "/etc/docker/certs/10.100.105.7:5000" directory as "ca.crt"
+# scp 10.100.105.7:/registry/certs/domain.crt /etc/docker/certs/10.100.105.7:5000/ca.crt
+
+3. Add insecure-registry option for the docker service. This is done by creating "/etc/systemd/system/docker.service.d/insecure-registry.conf" with the following content:
+[Service]
+Environment='DOCKER_OPTS=--insecure-registry="10.100.105.7:5000"'
+
+# mkdir -p /etc/systemd/system/docker.service.d && cd /etc/systemd/system/docker.service.d
+# vi insecure-registry.conf
+Add the content and save the file.
+
+4. Restart docker service
+# systemctl stop docker
+# systemctl daemon-reload
+# systemctl start docker
+
+C. Jenkins server builds docker images and pushes them to the domain docker registry.
+Command in project configuration to push the image from jenkins:
+./gradlew clean buildDocker -i -S -Dorg.gradle.java.home=$JAVA8_HOME -PdockerRegistryHost=10.100.105.7 -PdockerRegistryPort=5000
+
+D. Delete image in docker registry before pushing a new image with same tag.
+1. Get the digest information from the registry for a image and tag.
+Use the following API:
+curl -k -v --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" -X GET https://10.100.105.7:5000/v2/<imagename>/manifests/<tag>
+
+Example:
+# curl -k -v --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" -X GET https://10.100.105.7:5000/v2/elasticsearch/manifests/2 2>&1 \
+  | grep Docker-Content-Digest | awk '{print ($3)}'
+sha256:7d517e1bf6766e35c4978d5a3f4a13b11a6cb2d38f6d70f754a1152b0becd83b
+
+2. Invoke delete for the image:tag using the docker content digest.
+Use the following API:
+curl -v -k -X DELETE https://10.100.105.7:5000/v2/<imagename>/manifests/<digest> 
+
+Example:
+curl -k -X DELETE https://10.100.105.7:5000/v2/gateway-server/manifests/sha256:7d517e1bf6766e35c4978d5a3f4a13b11a6cb2d38f6d70f754a1152b0becd83b
+
+3. Invoke the garbage collection on the domain registry. SSH into the registry server and issue the following command.
+# docker exec -it registry  bin/registry garbage-collect  /etc/docker/registry/config.yml
+
+E. Deploying and starting microservices in an environment
+docker stop $(docker ps -aq)
+docker rm $(docker ps -aq)
+docker rmi (docker images -q)
+docker pull 10.100.105.7:5000/discovery-server
+docker pull 10.100.105.7:5000/gateway-server
+docker pull 10.100.105.7:5000/documentation-server
+docker pull 10.100.105.7:5000/ms-vitals
+
+cd fluentd-boot-master
+docker-compose up -d
+
+docker run -d -p 8012:8012 -e "SPRING_PROFILES_ACTIVE=trunk" --log-driver=fluentd --log-opt fluentd-address=10.7.112.37:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Discovery" -t 10.100.105.7:5000/discovery-server
+
+docker run -d -p 8443:8443 -e "SPRING_PROFILES_ACTIVE=trunk" --log-driver=fluentd --log-opt fluentd-address=10.7.112.37:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Gateway" -t 10.100.105.7:5000/gateway-server
+
+docker run -d -p 8014:8014 -e "SPRING_PROFILES_ACTIVE=trunk" --log-driver=fluentd --log-opt fluentd-address=10.7.112.37:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Documentation" -t 10.100.105.7:5000/documentation-server
+
+docker run -d -p 8050:8050 -e "SPRING_PROFILES_ACTIVE=trunk" --log-driver=fluentd --log-opt fluentd-address=10.7.112.37:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Vitals" -t 10.100.105.7:5000/ms-vitals
+
+F. The following curl commands can be executed from a remote server to query a domain registry
+1. API to list repositories in a remote registry
+curl -k https://10.100.105.7:5000/v2/_catalog
+
+Example:
+curl -k https://10.100.105.7:5000/v2/_catalog
+{"repositories":["discovery-server","documentation-server","gateway-server","ms-vitals"]}
+
+
+2. API to list tags of a repository (image) in a remote registry
+curl -k https://10.100.105.7:5000/v2/ms-vitals/tags/list
+
+Example:
+curl -k https://10.100.105.7:5000/v2/ms-vitals/tags/list
+{"name":"ms-vitals","tags":["0.1.0"]}
+
+
+
+
+docker run -d -p 9200:9200 -p 9300:9300 -v /data/docker/es:/usr/share/elasticsearch/data --name=efkmaster_es_1 localhost:5000/elasticsearch:2
+docker run -d --name=efkmaster_fluentd_1 -p 24224:24224 --link=efkmaster_es_1:es localhost:5000/efkmaster_fluentd
+docker run -d --name=efkmaster_kibana_1 -p 5601:5601 --link=efkmaster_es_1:elasticsearch localhost:5000/kibana:4
+
+
+
+docker run -d -p 9200:9200 -p 9300:9300 -v /data/docker/es:/usr/share/elasticsearch/data --name=efkmaster_es_1 localhost:5000/elasticsearch:2
+docker run -d --name=efkmaster_fluentd_1 -p 24224:24224 --link=efkmaster_es_1:es localhost:5000/efkmaster_fluentd
+docker run -d --name=efkmaster_kibana_1 -p 5601:5601 --link=efkmaster_es_1:elasticsearch localhost:5000/kibana:4
+docker run -d -p 8012:8012 -e "SPRING_PROFILES_ACTIVE=uat" --log-driver=fluentd --log-opt fluentd-address=10.7.229.5:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Discovery" -t 10.100.105.7:5000/discovery-server
+docker run -d -p 8443:8443 -e "SPRING_PROFILES_ACTIVE=uat" --log-driver=fluentd --log-opt fluentd-address=10.7.229.5:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Gateway" -t 10.100.105.7:5000/gateway-server
+docker run -d -p 8014:8014 -e "SPRING_PROFILES_ACTIVE=uat" --log-driver=fluentd --log-opt fluentd-address=10.7.229.5:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Documentation" -t 10.100.105.7:5000/documentation-server
+docker run -d -p 8050:8050 -e "SPRING_PROFILES_ACTIVE=uat" --log-driver=fluentd --log-opt fluentd-address=10.7.229.5:24224 --log-opt fluentd-tag="{{.Name}}/{{.ID}}" --name "NantOS_Vitals" -t localhost:5000/ms-vitals:0.1.0

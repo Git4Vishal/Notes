@@ -1,0 +1,133 @@
+CREATE KEYSPACE nantos_cos WITH replication = {'class': 'NetworkTopologyStrategy', 'DC1': '3', 'DC2': '3'}  AND durable_writes = true;
+
+CREATE TABLE nantos_cos.person_routine (
+    company_gid int,
+    person_gid int,
+    measurement_timestamp timestamp,
+    calories_burned double,
+    created_date timestamp,
+    created_user_id int,
+    device_gid text,
+    distance double,
+    distance_uom text,
+    elevation double,
+    elevation_uom text,
+    floors double,
+    last_updated_date timestamp,
+    routine_gid text,
+    source text,
+    source_name text,
+    steps double,
+    validated boolean,
+    water double,
+    water_uom text,
+    PRIMARY KEY ((company_gid, person_gid), measurement_timestamp)
+) WITH CLUSTERING ORDER BY (measurement_timestamp DESC)
+    AND bloom_filter_fp_chance = 0.01
+    AND caching = '{"keys":"ALL", "rows_per_partition":"NONE"}'
+    AND comment = ''
+    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}
+    AND compression = {'sstable_compression': 'org.apache.cassandra.io.compress.LZ4Compressor'}
+    AND dclocal_read_repair_chance = 0.1
+    AND default_time_to_live = 0
+    AND gc_grace_seconds = 864000
+    AND max_index_interval = 2048
+    AND memtable_flush_period_in_ms = 0
+    AND min_index_interval = 128
+    AND read_repair_chance = 0.0
+    AND speculative_retry = '99.0PERCENTILE';
+
+CREATE TABLE nantos_cos.person_biometric (
+    company_gid int,
+    person_gid int,
+    measurement_timestamp timestamp,
+    encounter_gid int,
+    biometrics_gid text,
+    blood_calcium double,
+    blood_chromium double,
+    blood_folic_acid double,
+    blood_magnesium double,
+    blood_potassium double,
+    blood_sodium double,
+    blood_vitamin_b12 double,
+    blood_zinc double,
+    created_date timestamp,
+    created_user_id int,
+    creatine_kinase double,
+    crp double,
+    device_gid text,
+    diastolic double,
+    ferritin double,
+    hdl double,
+    hscrp double,
+    il6 double,
+    last_updated_date timestamp,
+    ldl double,
+    mass_weight double,
+    resting_heartrate double,
+    source text,
+    source_name text,
+    spo2 double,
+    systolic double,
+    temparature double,
+    testosterone double,
+    total_cholesterol double,
+    tsh double,
+    uric_acid double,
+    validated boolean,
+    vitamin_d double,
+    white_cell_count double,
+    PRIMARY KEY ((company_gid, person_gid), measurement_timestamp, encounter_gid)
+) WITH CLUSTERING ORDER BY (measurement_timestamp DESC, encounter_gid ASC)
+    AND bloom_filter_fp_chance = 0.01
+    AND caching = '{"keys":"ALL", "rows_per_partition":"NONE"}'
+    AND comment = ''
+    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}
+    AND compression = {'sstable_compression': 'org.apache.cassandra.io.compress.LZ4Compressor'}
+    AND dclocal_read_repair_chance = 0.1
+    AND default_time_to_live = 0
+    AND gc_grace_seconds = 864000
+    AND max_index_interval = 2048
+    AND memtable_flush_period_in_ms = 0
+    AND min_index_interval = 128
+    AND read_repair_chance = 0.0
+    AND speculative_retry = '99.0PERCENTILE';
+
+CREATE TABLE nantos_cos.person_weight (
+    company_gid int,
+    person_gid int,
+    measurement_timestamp timestamp,
+    encounter_gid int,
+    bmi double,
+    created_date timestamp,
+    created_user_id int,
+    device_gid text,
+    fat_percent double,
+    free_mass double,
+    free_mass_uom text,
+    height double,
+    height_uom text,
+    last_updated_date timestamp,
+    mass_weight double,
+    mass_weight_uom text,
+    source text,
+    source_name text,
+    validated boolean,
+    weight double,
+    weight_gid text,
+    weight_uom text,
+    PRIMARY KEY ((company_gid, person_gid), measurement_timestamp, encounter_gid)
+) WITH CLUSTERING ORDER BY (measurement_timestamp DESC, encounter_gid ASC)
+    AND bloom_filter_fp_chance = 0.01
+    AND caching = '{"keys":"ALL", "rows_per_partition":"NONE"}'
+    AND comment = ''
+    AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'}
+    AND compression = {'sstable_compression': 'org.apache.cassandra.io.compress.LZ4Compressor'}
+    AND dclocal_read_repair_chance = 0.1
+    AND default_time_to_live = 0
+    AND gc_grace_seconds = 864000
+    AND max_index_interval = 2048
+    AND memtable_flush_period_in_ms = 0
+    AND min_index_interval = 128
+    AND read_repair_chance = 0.0
+    AND speculative_retry = '99.0PERCENTILE';

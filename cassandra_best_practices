@@ -1,0 +1,38 @@
+<server>
+  <id>${server}</id>
+  <username>PR5/ldKS</username>
+  <password>0fz4LG4DAgWd1qXMymWGzfPPoEuASVs1DtyXWv7oXYTd</password>
+</server>
+
+
+  The number of available CPUs is less than the recommended minimum (2)
+  The number of available CPUs is less than the recommended minimum for a production system (16)
+  The available memory is less than the recommended minimum (8000 MB)
+  The available memory is less than the recommended minimum for a production system (24000 MB)
+  Free space on data directory is less than recommended minimum for a production system (200 GB)
+  Free disk space on commitlog directory is less than recommended minimum for a production system (200 GB)
+  Free disk space on saved caches directory is less than recommended minimum for a production system (200 GB)
+  Free disk space on hints directory is less than recommended minimum for a production system (200 GB)
+  Free disk space on logs directory is less than recommended minimum for a production system (200 GB)
+
+
+Server options:
+Installation Directory: /usr/share/dse
+Logs Directory: /var/log
+Cassandra Data Directory: /var/lib/cassandra/data
+Cassandra Commitlog Directory: /var/lib/cassandra/commitlog
+Cassandra Saved Caches Dir: /var/lib/cassandra/saved_caches
+Cassandra Hints Dir: /var/lib/cassandra/hints
+Server Name: Local Cluster
+Enable VNodes: 1
+NumTokens: 128
+Listen Address: 127.0.0.1
+RPC Address: 127.0.0.1
+Seeds: 192.168.0.11
+Storage Port: 7000
+SSL Storage Port: 7001
+RPC Port: 9160
+Cassandra User: cassandra
+Cassandra Group: cassandra
+OpsCenter Address: 192.168.0.11
+Do Drain: 0

@@ -1,0 +1,59 @@
+host_ip=`ifconfig eth0 | grep inet | awk '{print ($2)}' | cut -d : -f 2`
+opcenter=10.7.230.4
+grep "^[^#;]" cassandra.yaml | less
+
+./DataStaxEnterprise-4.8.11-linux-x64-installer.run --mode text \
+	--prefix /usr/share/dse \
+	--cassandra_data_dir /data/cassandra/data \
+	--cassandra_commitlog_dir /data/cassandra/commitlog \
+	--cassandra_saved_caches_dir /data/cassandra/saved_caches \
+	--cassandra_logs_dir /var/log \
+	--system_install services_and_utilities \
+	--start_services 0 \
+	--opscenter_address $opcenter \
+	--update_system 0 \
+	--node_type cassandra \
+	--ring_name 'NantOS Cassandra Cluster' \
+	--seeds 10.7.230.4,10.15.230.4 \
+	--enable_vnodes 1 \
+	--listen_address $host_ip \
+	--rpc_address $host_ip
+
+
+	System Configuration
+
+
+
+Found Issues:
+
+  The number of available CPUs is less than the recommended minimum for a
+production system (16)
+  The available memory is less than the recommended minimum for a production
+system (24000 MB)
+  Free space on data directory is less than recommended minimum (20 GB)
+  Free space on data directory is less than recommended minimum for a production
+system (200 GB)
+  Free disk space on commitlog directory is less than recommended minimum (20
+GB)
+  Free disk space on commitlog directory is less than recommended minimum for a
+production system (200 GB)
+  Free disk space on saved caches directory is less than recommended minimum (20
+GB)
+  Free disk space on saved caches directory is less than recommended minimum for
+a production system (200 GB)
+  Free disk space on logs directory is less than recommended minimum (20 GB)
+
+  Free disk space on logs directory is less than recommended minimum for a
+production system (200 GB)
+
+[11:57:59] Postinstall dse
+[11:57:59] Postinstall datastax-agent
+Executing /usr/share/dse/datastax-agent/bin/post_install_agent_linux
+/usr/share/dse/datastax-agent dse /var/lib/cassandra/data
+/var/lib/cassandra/commitlog /var/lib/cassandra/saved_caches /var/log/opscenter
+Press [Enter] to continue:
+/usr/share/dse/Desktop 0 simple services_and_utilities cassandra cassandra
+redhat 6.7 0 /usr/share/dse/tools none
+Script exit code: 0
+
+IT-56705, IT-54992 

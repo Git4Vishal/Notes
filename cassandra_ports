@@ -1,0 +1,19 @@
+Port/Protocol: 
+Source:	Cassandra nodes(10.7.230.4, 10.7.230.5, 10.15.230.4, 10.15.230.5)
+Destination: OpsCenter server(10.7.230.4)
+
+Port/Protocol: 8443/TCP for SSL
+Source:	
+Destination: OpsCenter server(10.7.230.4)
+
+22/TCP - SSH port
+7000/TCP Cassandra inter-node cluster communication must be open on all Cassandra nodes.
+7001/TCP Cassandra SSL inter-node cluster communication must be open on all Cassandra nodes.
+7199/TCP JMX monitoring port. Each agent opens a JMX connection to its local node. Note: It is not necessary to set this local port for firewall purposes.
+8888/TCP OpsCenter web-based user interface. The opscenterd daemon listens on this port for HTTP requests coming directly from the browser.
+8443/TCP The port on which to serve SSL traffic. The opscenterd daemon listens on this port for HTTPs requests being redirected from port 8888.
+9042/TCP Cassandra Client port must be all Cassandra nodes.
+9160/TCP Cassandra Client thrift port must be all Cassandra nodes.
+61619/TCP OpsCenter stomp port. A port used by the Stomp service for internal communications on the OpsCenter server. Note: It is not necessary to set this local port for firewall purposes.
+61620/TCP - Agent communications over Stomp. The opscenterd daemon listens on this port for TCP traffic coming from the agents. This port needs to be open on OPSCENTER Server (10.7.230.4)
+61621/TCP - DataStax agent port for DataStax agents http/https service. The agents listen on this port for TCP traffic initiated by OpsCenter. This port needs to be open on all Cassandra nodes.

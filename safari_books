@@ -1,0 +1,44 @@
+https://www.safaribooksonline.com/library/view/study-guide-for/9781771374088/
+https://www.safaribooksonline.com/library/view/learning-path-modern/9781787280236/
+
+Service Registry/Discovery:
+1. Zookeeper and Curator --- Messy when scaling
+2. Kubernetes --- Open source google project. Scales well.
+3. etcd
+4. Consul
+5. OSGi
+6. Snoop
+
+NoOps
+Service Replication - Kubernetes
+Dependancy resolution - Nexus
+Failover - Circuit Breaker
+Resiliency - Circuit Breaker
+Service monitoring, alerts and events - ELK or Appdynamics, Nurelic
+
+Docker swarm
+
+Kubernetes - Orchestration system for docker containers
+It provides declarative primitives for the "desired state"
+* Self-healing
+* Auto-restarting
+* Schedule across hosts
+* Replicating
+
+Openshift
+
+github.com/arun-gupta/microservices
+github.com/javaee-samples/docker-java
+dzone refcards
+
+Jan 20th, 2017 - Jan 10th, 2018 - Home => 1322.00
+Jan 11th, 2017 - Jan 10th, 2018 - Umbrella => 301.00
+Jan 11th, 2017 - July 10th, 2017 - Auto => 910.00
+One time fee => 100.00
+
+Cancellation => SafeCo Auto, Renters, Umbrella => Jan 11th
+Cancellation => Liberty Mutual Home => Jan 20th (Refund)
+
+12 months => 1666.00
+12 months => 1655.00
+12 months => 278.00
