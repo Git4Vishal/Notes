@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd /c/'Program Files'/'Docker Toolbox'/
+./start.sh
